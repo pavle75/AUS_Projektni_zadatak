@@ -56,8 +56,6 @@ namespace Modbus.ModbusFunctions
             return result;
         }
 
-        // --- Helpers ---
-
         private void WriteShortToBuffer(byte[] buffer, int offset, short value)
         {
             Buffer.BlockCopy(
@@ -68,7 +66,7 @@ namespace Modbus.ModbusFunctions
 
         private void ParseRegisterData(byte[] response, Dictionary<Tuple<PointType, ushort>, ushort> result)
         {
-            int byteCount = response[8]; // Ukupan broj bajtova podataka (svaki registar = 2 bajta)
+            int byteCount = response[8];
             ushort address = ((ModbusReadCommandParameters)CommandParameters).StartAddress;
 
             for (int i = 0; i < byteCount; i += 2)

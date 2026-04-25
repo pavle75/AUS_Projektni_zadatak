@@ -56,8 +56,6 @@ namespace Modbus.ModbusFunctions
             return result;
         }
 
-        // --- Helpers ---
-
         private void WriteShortToBuffer(byte[] buffer, int offset, short value)
         {
             Buffer.BlockCopy(
@@ -69,8 +67,8 @@ namespace Modbus.ModbusFunctions
         private void ParseCoilData(byte[] response, Dictionary<Tuple<PointType, ushort>, ushort> result)
         {
             var readParams = (ModbusReadCommandParameters)CommandParameters;
-            int byteCount = response[8];        // Koliko bajtova podataka je stiglo
-            int totalPoints = readParams.Quantity; // Ukupno coil-ova koje čitamo
+            int byteCount = response[8];
+            int totalPoints = readParams.Quantity;
             ushort address = readParams.StartAddress;
             int parsed = 0;
 
@@ -80,8 +78,8 @@ namespace Modbus.ModbusFunctions
 
                 for (int bit = 0; bit < 8; bit++)
                 {
-                    ushort coilValue = (ushort)(currentByte & 1); // izvuci LSB
-                    currentByte >>= 1;                            // pomjeri desno za sledeći bit
+                    ushort coilValue = (ushort)(currentByte & 1);
+                    currentByte >>= 1;
 
                     var key = Tuple.Create(PointType.DIGITAL_OUTPUT, address);
                     result.Add(key, coilValue);
@@ -89,7 +87,7 @@ namespace Modbus.ModbusFunctions
                     address++;
                     parsed++;
 
-                    if (parsed == totalPoints) return; // gotovi smo
+                    if (parsed == totalPoints) return;
                 }
             }
         }

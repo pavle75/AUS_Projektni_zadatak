@@ -1,9 +1,9 @@
-STA 191
+STA 53
 TCP 47961
 
 DO_REG  1 2300   0 0    1 0   DO  @STOP 1
 DO_REG  1 2302   0 0    1 0   DO  @V1   1
-DO_REG  1 2305   0 0    1 0   DO  @P1P2 1
+DO_REG  2 2305   0 0    1 0   DO  @P1P2 1
 
 IN_REG  1 2200   0 0 4095 0   AI  @L    3
 

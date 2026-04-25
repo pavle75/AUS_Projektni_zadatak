@@ -56,8 +56,6 @@ namespace Modbus.ModbusFunctions
             return result;
         }
 
-        // --- Helpers ---
-
         private void WriteShortToBuffer(byte[] buffer, int offset, short value)
         {
             Buffer.BlockCopy(
