@@ -1,6 +1,7 @@
 ﻿using Common;
 using System;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace ProcessingModule
 {
@@ -8,12 +9,12 @@ namespace ProcessingModule
     /// Class containing logic for periodic polling.
     /// </summary>
     public class Acquisitor : IDisposable
-	{
-		private AutoResetEvent acquisitionTrigger;
+    {
+        private AutoResetEvent acquisitionTrigger;
         private IProcessingManager processingManager;
         private Thread acquisitionWorker;
-		private IStateUpdater stateUpdater;
-		private IConfiguration configuration;
+        private IStateUpdater stateUpdater;
+        private IConfiguration configuration;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Acquisitor"/> class.
@@ -22,49 +23,74 @@ namespace ProcessingModule
         /// <param name="processingManager">The processing manager.</param>
         /// <param name="stateUpdater">The state updater.</param>
         /// <param name="configuration">The configuration.</param>
-		public Acquisitor(AutoResetEvent acquisitionTrigger, IProcessingManager processingManager, IStateUpdater stateUpdater, IConfiguration configuration)
-		{
-			this.stateUpdater = stateUpdater;
-			this.acquisitionTrigger = acquisitionTrigger;
-			this.processingManager = processingManager;
-			this.configuration = configuration;
-			this.InitializeAcquisitionThread();
-			this.StartAcquisitionThread();
-		}
+        public Acquisitor(AutoResetEvent acquisitionTrigger, IProcessingManager processingManager, IStateUpdater stateUpdater, IConfiguration configuration)
+        {
+            this.stateUpdater = stateUpdater;
+            this.acquisitionTrigger = acquisitionTrigger;
+            this.processingManager = processingManager;
+            this.configuration = configuration;
+            this.InitializeAcquisitionThread();
+            this.StartAcquisitionThread();
+        }
 
-		#region Private Methods
+        #region Private Methods
 
         /// <summary>
         /// Initializes the acquisition thread.
         /// </summary>
-		private void InitializeAcquisitionThread()
-		{
-			this.acquisitionWorker = new Thread(Acquisition_DoWork);
-			this.acquisitionWorker.Name = "Acquisition thread";
-		}
+        private void InitializeAcquisitionThread()
+        {
+            this.acquisitionWorker = new Thread(Acquisition_DoWork);
+            this.acquisitionWorker.Name = "Acquisition thread";
+        }
 
         /// <summary>
         /// Starts the acquisition thread.
         /// </summary>
-		private void StartAcquisitionThread()
-		{
-			acquisitionWorker.Start();
-		}
+        private void StartAcquisitionThread()
+        {
+            acquisitionWorker.Start();
+        }
 
         /// <summary>
         /// Acquisitor thread logic.
         /// </summary>
-		private void Acquisition_DoWork()
-		{
-            //TO DO: IMPLEMENT
+        private void Acquisition_DoWork()
+        {
+            List<IConfigItem> items = configuration.GetConfigurationItems();
+
+            while (true)
+            {
+                acquisitionTrigger.WaitOne();
+
+                foreach (IConfigItem item in items)
+                {
+                    int interval = item.RegistryType == PointType.DIGITAL_OUTPUT ? 1 : 3;
+
+                    item.SecondsPassedSinceLastPoll++;
+
+                    if (item.SecondsPassedSinceLastPoll >= interval)
+                    {
+                        processingManager.ExecuteReadCommand(
+                            item,
+                            configuration.GetTransactionId(),
+                            configuration.UnitAddress,
+                            item.StartAddress,
+                            item.NumberOfRegisters
+                        );
+
+                        item.SecondsPassedSinceLastPoll = 0;
+                    }
+                }
+            }
         }
 
         #endregion Private Methods
 
         /// <inheritdoc />
         public void Dispose()
-		{
-			acquisitionWorker.Abort();
+        {
+            acquisitionWorker.Abort();
         }
-	}
+    }
 }

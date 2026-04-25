@@ -10,13 +10,13 @@ namespace Modbus.ModbusFunctions
     /// <summary>
     /// Class containing logic for parsing and packing modbus read coil functions/requests.
     /// </summary>
-    public class ReadCoilsFunction : ModbusFunction
+    public class ReadCoilsFunction : ModbusFunction // Digitalni izlaz
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ReadCoilsFunction"/> class.
         /// </summary>
         /// <param name="commandParameters">The modbus command parameters.</param>
-		public ReadCoilsFunction(ModbusCommandParameters commandParameters) : base(commandParameters)
+        public ReadCoilsFunction(ModbusCommandParameters commandParameters) : base(commandParameters)
         {
             CheckArguments(MethodBase.GetCurrentMethod(), typeof(ModbusReadCommandParameters));
         }
@@ -24,15 +24,74 @@ namespace Modbus.ModbusFunctions
         /// <inheritdoc/>
         public override byte[] PackRequest()
         {
-            //TO DO: IMPLEMENT
-            throw new NotImplementedException();
+            var readParams = (ModbusReadCommandParameters)CommandParameters;
+            byte[] request = new byte[12];
+
+            WriteShortToBuffer(request, 0, (short)CommandParameters.TransactionId);
+            WriteShortToBuffer(request, 2, (short)CommandParameters.ProtocolId);
+            WriteShortToBuffer(request, 4, (short)CommandParameters.Length);
+
+            request[6] = CommandParameters.UnitId;
+            request[7] = CommandParameters.FunctionCode;
+
+            WriteShortToBuffer(request, 8, (short)readParams.StartAddress);
+            WriteShortToBuffer(request, 10, (short)readParams.Quantity);
+
+            return request;
         }
 
-        /// <inheritdoc />
+        /// <inheritdoc/>
         public override Dictionary<Tuple<PointType, ushort>, ushort> ParseResponse(byte[] response)
         {
-            //TO DO: IMPLEMENT
-            throw new NotImplementedException();
+            var result = new Dictionary<Tuple<PointType, ushort>, ushort>();
+
+            bool isError = response[7] == CommandParameters.FunctionCode + 0x80;
+            if (isError)
+            {
+                HandeException(response[8]);
+                return result;
+            }
+
+            ParseCoilData(response, result);
+            return result;
+        }
+
+        // --- Helpers ---
+
+        private void WriteShortToBuffer(byte[] buffer, int offset, short value)
+        {
+            Buffer.BlockCopy(
+                BitConverter.GetBytes(IPAddress.HostToNetworkOrder(value)),
+                0, buffer, offset, 2
+            );
+        }
+
+        private void ParseCoilData(byte[] response, Dictionary<Tuple<PointType, ushort>, ushort> result)
+        {
+            var readParams = (ModbusReadCommandParameters)CommandParameters;
+            int byteCount = response[8];        // Koliko bajtova podataka je stiglo
+            int totalPoints = readParams.Quantity; // Ukupno coil-ova koje čitamo
+            ushort address = readParams.StartAddress;
+            int parsed = 0;
+
+            for (int byteIndex = 0; byteIndex < byteCount; byteIndex++)
+            {
+                byte currentByte = response[9 + byteIndex];
+
+                for (int bit = 0; bit < 8; bit++)
+                {
+                    ushort coilValue = (ushort)(currentByte & 1); // izvuci LSB
+                    currentByte >>= 1;                            // pomjeri desno za sledeći bit
+
+                    var key = Tuple.Create(PointType.DIGITAL_OUTPUT, address);
+                    result.Add(key, coilValue);
+
+                    address++;
+                    parsed++;
+
+                    if (parsed == totalPoints) return; // gotovi smo
+                }
+            }
         }
     }
 }
